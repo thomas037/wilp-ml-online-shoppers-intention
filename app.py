@@ -14,54 +14,60 @@ from sklearn.metrics import (
     f1_score,
     matthews_corrcoef,
     confusion_matrix,
-    classification_report
+    classification_report,
+    roc_curve
 )
 
+# ---------------------------------------------------------
 # Page Configuration
+# ---------------------------------------------------------
 st.set_page_config(
     page_title="Online Shoppers Intention Classifier",
     page_icon="🛒",
     layout="wide"
 )
 
-st.title("🛒 Online Shoppers Purchasing Intention Classifier")
-st.markdown(
-    """
-    This interactive application demonstrates 5 classification models trained to predict 
-    whether an online session results in a transaction (**Revenue = True/False**).
-    """
-)
+# ---------------------------------------------------------
+# Sidebar: Branding, Model Selection & File Upload
+# ---------------------------------------------------------
+with st.sidebar:
+    # Sidebar local image banner
+    if os.path.exists("banner.gif"):
+        st.image("banner.gif", use_container_width=True)
+    
+    st.header("⚙️ Configuration & Input")
+    
+    # 5 Models mapped to joblib pipeline artifacts
+    MODEL_FILES = {
+        "Logistic Regression": "model/logistic_regression.joblib",
+        "Decision Tree": "model/decision_tree.joblib",
+        "kNN": "model/knn.joblib",
+        "Naive Bayes": "model/naive_bayes.joblib",
+        "Support Vector Machine": "model/support_vector_machine.joblib"
+    }
 
-# Sidebar: Model and File Controls
-st.sidebar.header("Configuration & Input")
+    selected_model_name = st.selectbox(
+        "Choose a Classification Model:",
+        list(MODEL_FILES.keys())
+    )
 
-# Model Mapping
-MODEL_FILES = {
-    "Logistic Regression": "model/logistic_regression.joblib",
-    "Decision Tree": "model/decision_tree.joblib",
-    "kNN": "model/knn.joblib",
-    "Naive Bayes": "model/naive_bayes.joblib",
-    "Support Vector Machine": "model/support_vector_machine.joblib"
-}
+    # Mandatory Rubric Item: CSV Dataset Upload
+    uploaded_file = st.file_uploader(
+        "Upload Test Dataset (CSV)",
+        type=["csv"],
+        help="Upload test_data.csv containing session features and the true 'Revenue' column."
+    )
 
-selected_model_name = st.sidebar.selectbox(
-    "Choose a Classification Model:",
-    list(MODEL_FILES.keys())
-)
+    use_default_data = st.checkbox(
+        "Use repository default test_data.csv",
+        value=True if uploaded_file is None else False
+    )
 
-# Rubric Requirement: CSV Upload Option
-uploaded_file = st.sidebar.file_uploader(
-    "Upload Test Dataset (CSV)",
-    type=["csv"],
-    help="Upload test_data.csv containing session features and the true 'Revenue' column."
-)
+    st.markdown("---")
 
-use_default_data = st.sidebar.checkbox(
-    "Or Use test_data.csv from repository",
-    value=True if uploaded_file is None else False
-)
-
-# Data Loading Logic
+# ---------------------------------------------------------
+# Data Loading & Pipeline Verification
+# ---------------------------------------------------------
 df_test = None
 if uploaded_file is not None:
     try:
@@ -76,34 +82,49 @@ elif use_default_data:
     else:
         st.sidebar.warning("`test_data.csv` not found in root directory. Please upload a file.")
 
-# Model Loading Function
 @st.cache_resource
 def load_trained_model(path):
     if os.path.exists(path):
         return joblib.load(path)
     return None
 
-# Main Execution Flow
+# ---------------------------------------------------------
+# Main Application Content
+# ---------------------------------------------------------
+st.title("🛒 Online Shoppers Purchasing Intention Classifier")
+st.markdown(
+    "Interactive Machine Learning deployment benchmarking classification models "
+    "on the **UCI Online Shoppers Purchasing Intention** dataset."
+)
+
 if df_test is not None:
-    # Validate target column presence
+    # Ensure ground-truth target is present
     if 'Revenue' not in df_test.columns:
         st.error("Uploaded CSV must contain the ground-truth target column: 'Revenue'.")
     else:
-        # Separate features and target
+        # Guarantee engineered features exist if raw data was uploaded
+        if 'Avg_Duration_Per_Page' not in df_test.columns or 'Product_Ratio' not in df_test.columns:
+            total_pages = df_test['Administrative'] + df_test['Informational'] + df_test['ProductRelated']
+            total_duration = (
+                df_test['Administrative_Duration'] 
+                + df_test['Informational_Duration'] 
+                + df_test['ProductRelated_Duration']
+            )
+            df_test['Avg_Duration_Per_Page'] = total_duration / (total_pages + 1e-5)
+            df_test['Product_Ratio'] = df_test['ProductRelated'] / (total_pages + 1e-5)
+
         X_test_input = df_test.drop(columns=['Revenue'])
         y_test_true = df_test['Revenue'].astype(int)
 
-        # Load selected model
+        # Load active model
         model_path = MODEL_FILES[selected_model_name]
         model = load_trained_model(model_path)
 
         if model is None:
-            st.error(f"Model file not found at `{model_path}`. Please ensure training artifacts exist.")
+            st.error(f"Model file not found at `{model_path}`. Please run training to export artifacts.")
         else:
-            # Predict labels and probability
+            # Predict labels & probabilities
             y_pred = model.predict(X_test_input)
-            
-            # Predict probability if supported
             if hasattr(model, "predict_proba"):
                 y_proba = model.predict_proba(X_test_input)[:, 1]
             elif hasattr(model, "decision_function"):
@@ -111,7 +132,7 @@ if df_test is not None:
             else:
                 y_proba = y_pred
 
-            # Compute Evaluation Metrics
+            # Calculate the 6 required metrics
             acc = accuracy_score(y_test_true, y_pred)
             auc = roc_auc_score(y_test_true, y_proba)
             prec = precision_score(y_test_true, y_pred, zero_division=0)
@@ -119,42 +140,91 @@ if df_test is not None:
             f1 = f1_score(y_test_true, y_pred, zero_division=0)
             mcc = matthews_corrcoef(y_test_true, y_pred)
 
-            # Display Metrics
-            st.subheader(f"📊 Performance Metrics: {selected_model_name}")
-            col1, col2, col3 = st.columns(3)
-            col4, col5, col6 = st.columns(3)
+            # Sidebar download button for predicted results
+            results_export = df_test.copy()
+            results_export["Predicted_Revenue"] = y_pred
+            results_export["Purchase_Probability"] = np.round(y_proba, 4)
 
-            col1.metric("Accuracy", f"{acc * 100:.2f}%")
-            col2.metric("AUC Score", f"{auc:.4f}")
-            col3.metric("Precision", f"{prec:.4f}")
-            col4.metric("Recall", f"{rec:.4f}")
-            col5.metric("F1 Score", f"{f1:.4f}")
-            col6.metric("MCC Score", f"{mcc:.4f}")
+            csv_export_bytes = results_export.to_csv(index=False).encode('utf-8')
+            st.sidebar.download_button(
+                label="📥 Download Predictions CSV",
+                data=csv_export_bytes,
+                file_name=f"{selected_model_name.lower().replace(' ', '_')}_predictions.csv",
+                mime="text/csv",
+                help="Download test data records with model predictions and probabilities"
+            )
 
-            st.markdown("---")
+            # UI Customization: Tabbed Organization
+            tab_eval, tab_leaderboard, tab_data = st.tabs([
+                "🎯 Model Evaluation",
+                "📈 All Models Leaderboard",
+                "📁 Dataset Explorer"
+            ])
 
-            # Diagnostics: Confusion Matrix & Classification Report
-            col_diag1, col_diag2 = st.columns([1, 1])
+            # -------------------------------------------------
+            # TAB 1: MODEL EVALUATION
+            # -------------------------------------------------
+            with tab_eval:
+                st.subheader(f"Performance Scorecard: {selected_model_name}")
 
-            with col_diag1:
-                st.subheader("Confusion Matrix")
-                cm = confusion_matrix(y_test_true, y_pred)
-                fig, ax = plt.subplots(figsize=(5, 4))
-                sns.heatmap(
-                    cm,
-                    annot=True,
-                    fmt="d",
-                    cmap="Blues",
-                    xticklabels=["No Purchase (0)", "Purchase (1)"],
-                    yticklabels=["No Purchase (0)", "Purchase (1)"],
-                    cbar=False,
-                    ax=ax
+                # Metric Cards
+                col1, col2, col3, col4, col5, col6 = st.columns(6)
+                col1.metric("Accuracy", f"{acc * 100:.2f}%")
+                col2.metric("AUC Score", f"{auc:.4f}")
+                col3.metric("Precision", f"{prec:.4f}")
+                col4.metric("Recall", f"{rec:.4f}")
+                col5.metric("F1 Score", f"{f1:.4f}")
+                col6.metric("MCC Score", f"{mcc:.4f}")
+
+                # Visual callout summary
+                purchase_pct = (y_pred.sum() / len(y_pred)) * 100
+                st.info(
+                    f"💡 **Prediction Breakdown:** Classified **{y_pred.sum():,}** out of "
+                    f"**{len(y_pred):,}** sessions (**{purchase_pct:.1f}%**) as completed transactions."
                 )
-                ax.set_xlabel("Predicted Label")
-                ax.set_ylabel("True Label")
-                st.pyplot(fig)
 
-            with col_diag2:
+                st.markdown("---")
+
+                # Visual Diagnostics: Confusion Matrix & ROC Curve
+                col_cm, col_roc = st.columns(2)
+
+                with col_cm:
+                    st.subheader("Confusion Matrix")
+                    cm = confusion_matrix(y_test_true, y_pred)
+                    fig_cm, ax_cm = plt.subplots(figsize=(5, 3.8))
+                    sns.heatmap(
+                        cm,
+                        annot=True,
+                        fmt="d",
+                        cmap="Blues",
+                        xticklabels=["No Purchase (0)", "Purchase (1)"],
+                        yticklabels=["No Purchase (0)", "Purchase (1)"],
+                        cbar=False,
+                        ax=ax_cm
+                    )
+                    ax_cm.set_xlabel("Predicted Label")
+                    ax_cm.set_ylabel("True Label")
+                    st.pyplot(fig_cm)
+                    plt.close(fig_cm)
+
+                with col_roc:
+                    st.subheader("ROC Curve")
+                    fpr, tpr, _ = roc_curve(y_test_true, y_proba)
+                    fig_roc, ax_roc = plt.subplots(figsize=(5, 3.8))
+                    ax_roc.plot(fpr, tpr, color='#1E3C72', lw=2.5, label=f'ROC (AUC = {auc:.4f})')
+                    ax_roc.plot([0, 1], [0, 1], color='gray', linestyle='--', lw=1.5)
+                    ax_roc.set_xlim([0.0, 1.0])
+                    ax_roc.set_ylim([0.0, 1.05])
+                    ax_roc.set_xlabel("False Positive Rate")
+                    ax_roc.set_ylabel("True Positive Rate")
+                    ax_roc.legend(loc="lower right")
+                    ax_roc.grid(alpha=0.3)
+                    st.pyplot(fig_roc)
+                    plt.close(fig_roc)
+
+                st.markdown("---")
+
+                # Classification Report Table
                 st.subheader("Classification Report")
                 report_dict = classification_report(
                     y_test_true,
@@ -165,11 +235,73 @@ if df_test is not None:
                 report_df = pd.DataFrame(report_dict).transpose()
                 st.dataframe(report_df.style.format(precision=4), use_container_width=True)
 
-            st.markdown("---")
+            # -------------------------------------------------
+            # TAB 2: ALL MODELS LEADERBOARD
+            # -------------------------------------------------
+            with tab_leaderboard:
+                st.subheader("Comparative Benchmark Across All 5 Models")
+                st.markdown("Evaluation metrics dynamically computed across all trained models on the active test set:")
 
-            # Test Dataset Sample Viewer
-            with st.expander("🔍 View Uploaded Test Data Sample (First 5 Rows)"):
-                st.dataframe(df_test.head())
+                leaderboard_rows = []
+                for name, path in MODEL_FILES.items():
+                    m = load_trained_model(path)
+                    if m is not None:
+                        pred = m.predict(X_test_input)
+                        if hasattr(m, "predict_proba"):
+                            proba = m.predict_proba(X_test_input)[:, 1]
+                        elif hasattr(m, "decision_function"):
+                            proba = m.decision_function(X_test_input)
+                        else:
+                            proba = pred
+
+                        leaderboard_rows.append({
+                            "ML Model Name": name,
+                            "Accuracy": round(accuracy_score(y_test_true, pred), 4),
+                            "AUC": round(roc_auc_score(y_test_true, proba), 4),
+                            "Precision": round(precision_score(y_test_true, pred, zero_division=0), 4),
+                            "Recall": round(recall_score(y_test_true, pred, zero_division=0), 4),
+                            "F1": round(f1_score(y_test_true, pred, zero_division=0), 4),
+                            "MCC": round(matthews_corrcoef(y_test_true, pred), 4)
+                        })
+
+                if leaderboard_rows:
+                    bench_df = pd.DataFrame(leaderboard_rows)
+                    st.dataframe(
+                        bench_df.style.highlight_max(
+                            subset=["Accuracy", "AUC", "Precision", "Recall", "F1", "MCC"], 
+                            color="#d1e7dd"
+                        ),
+                        use_container_width=True
+                    )
+                else:
+                    st.warning("Ensure all 5 model artifacts exist in the `model/` folder to populate the leaderboard.")
+
+            # -------------------------------------------------
+            # TAB 3: DATASET EXPLORER
+            # -------------------------------------------------
+            with tab_data:
+                st.subheader("Active Test Dataset Explorer")
+                st.write(f"Total Rows: **{df_test.shape[0]}** | Total Columns: **{df_test.shape[1]}**")
+                st.dataframe(df_test, use_container_width=True)
+                
+                with st.expander("📊 View Numerical Summary Statistics"):
+                    st.dataframe(df_test.describe().T, use_container_width=True)
 
 else:
     st.info("👈 Upload a test dataset (`test_data.csv`) using the sidebar to begin model evaluation.")
+
+# ---------------------------------------------------------
+# Sidebar Footer: Course & Submission Metadata
+# ---------------------------------------------------------
+with st.sidebar:
+    st.markdown("---")
+    st.markdown(
+        """
+        **BITS Pilani — WILP**  
+        *Machine Learning Assignment 2*  
+        
+        **Author:** Leo Thomas
+        
+        **Dataset:** UCI Online Shoppers (12,330 records)
+        """
+    )
