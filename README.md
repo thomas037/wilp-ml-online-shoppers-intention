@@ -1,37 +1,35 @@
 # Online Shoppers Purchasing Intention Classifier
 
 ### a. Problem Statement
-The objective of this project is to predict whether an online shopper will complete a transaction (make a purchase) during a browsing session. By analyzing session features - such as the duration of page visits, the type of visitor, bounce rates, and timing - we aim to classify the session outcome as `Revenue = True` or `Revenue = False`. This binary classification problem is crucial for e-commerce platforms to optimize marketing interventions, personalize user experiences, and maximize conversion rates.
+A large proportion of online shopping sessions fail to convert into purchases. The objective of this project is to predict whether an online shopper will complete a transaction (make a purchase) during a browsing session. By analyzing session features—such as the duration of page visits, the type of visitor, bounce rates, and timing—we aim to classify the session outcome as `Revenue = True` or `Revenue = False`. This binary classification problem is crucial for e-commerce platforms to optimize marketing interventions, personalize user experiences, and maximize conversion rates.
 
 ### b. Dataset Description
 * **Source:** UCI Machine Learning Repository (Online Shoppers Purchasing Intention Dataset).
 * **Instances:** 12,330 sessions.
-* **Features:** 17 features (10 continuous/numerical and 7 categorical), capturing page views (Administrative, Informational, Product Related), Google Analytics metrics (BounceRates, ExitRates, PageValues), and session contexts (Month, OperatingSystems, Browser, Region, TrafficType, VisitorType, Weekend).
+* **Features:** 17 raw features capturing page views (Administrative, Informational, Product Related), Google Analytics metrics (BounceRates, ExitRates, PageValues), and session contexts. The pipeline incorporates engineered features (`Avg_Duration_Per_Page` and `Product_Ratio`), properly categorizes integer-coded IDs, and applies power transformations to handle right-skewed numerical data.
 * **Target Variable:** `Revenue` (Boolean: True/False).
-* **Characteristics:** The dataset is imbalanced, with approximately 84.5% of sessions resulting in negative class (False) and 15.5% in the positive class (True).
+* **Characteristics:** The dataset is imbalanced, with approximately 84.5% of sessions resulting in the negative class (False) and 15.5% in the positive class (True).
 
 ### c. Github Repository Link
-**Repository:** https://github.com/thomas037/wilp-ml-online-shoppers-intention
+**Repository:** [https://github.com/thomas037/wilp-ml-online-shoppers-intention]
 
 ### d. Models Used and Evaluation Metrics Comparison
-*Note: The metrics below reflect the models' performance after utilizing `class_weight='balanced'` where applicable to account for the imbalanced nature of the dataset.*
+*Note: The metrics below reflect the models' performance on the test set after applying class balancing techniques, feature engineering, and power transformations.*
 
 | ML Model Name | Accuracy | AUC | Precision | Recall | F1 | MCC |
-| ------ | ------ | ------ | ------ | ------ | ------ | ------ |
-| <b>Logistic Regression</b> | 0.8500 | 0.8963 | 0.5107 | 0.7487 | 0.6072 | 0.5330 |
-| <b>Decision Tree</b> | 0.8451 | 0.9026 | 0.5000 | 0.8325 | 0.6248 | 0.5623 |
-| <b>kNN</b> | 0.8731 | 0.7912 | 0.6561 | 0.3796 | 0.4809 | 0.4346 |
-| <b>Naive Bayes</b> | 0.6764 | 0.7974 | 0.2977 | 0.8010 | 0.4340 | 0.3336 |
-| <b>Support Vector Machine</b> | 0.8581 |0.8861 | 0.5307 | 0.7251 | 0.6128 | 0.5381 |
-
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Logistic Regression** | 0.8654 | 0.9236 | 0.5421 | 0.8429 | 0.6598 | 0.6028 |
+| **Decision Tree** | 0.8682 | 0.9280 | 0.5501 | 0.8194 | 0.6583 | 0.5982 |
+| **kNN** | 0.9039 | 0.9095 | 0.7458 | 0.5759 | 0.6499 | 0.6020 |
+| **Naive Bayes** | 0.2178 | 0.7677 | 0.1633 | 0.9817 | 0.2800 | 0.0851 |
+| **Support Vector Machine** | 0.8670 | 0.9295 | 0.5453 | 0.8508 | 0.6646 | 0.6091 |
 
 ### e. Observations on Model Performance
 
-| <b>ML Model Name</b> | <b>Observation about model performance</b> |
-| ------ | ------ |
-| <b>Logistic Regression</b> | Acts as a strong, interpretable baseline. By balancing class weights, it achieves a healthy trade-off between Precision and Recall, proving that linear decision boundaries capture the dataset's variance reasonably well. |
-| <b>Decision Tree</b> | Exhibits high recall due to class balancing but suffers slightly in precision. Limiting the `max_depth` was necessary to prevent it from overfitting the majority class and memorizing noise. |
-| <b>kNN</b> | Struggled with the minority class (low recall) compared to other models. Being a distance-based metric, it is sensitive to the high dimensionality (17+ features after encoding) and class imbalance. |
-| <b>Naive Bayes</b> | Achieved the lowest overall accuracy. Its assumption of feature independence likely hurt its performance, as features like `BounceRates` and `ExitRates` or `PageValues` and `Revenue` are highly correlated. |
-| <b>Support Vector Machine</b> | Performed exceptionally well, yielding the highest AUC and F1 scores. The RBF kernel successfully mapped the non-linear relationships in features like `PageValues` and `ProductRelated_Duration`. |
-| <b>Overall, Winner for your dataset?</b> | **Support Vector Machine (SVM)** (or Logistic Regression for a faster, more interpretable alternative). SVM provided the best balance of Recall and Precision (highest MCC and F1), which is critical for an imbalanced e-commerce dataset where identifying the minority class (buyers) is the primary goal. |
+| **ML Model Name** | **Observation about model performance** |
+| :--- | :--- |
+| **Logistic Regression** | Serves as a very strong, interpretable baseline. Benefiting from the power-transformed skewed numerical features and balanced class weights, it achieved an excellent AUC (0.9236) and a high recall, successfully identifying the majority of actual purchasers. |
+| **Decision Tree** | Performed consistently well across the board. By constraining leaf splits and balancing class weights, it managed the dataset's imbalance effectively, yielding strong AUC (0.9280) and F1 scores without overfitting to the majority class. |
+| **kNN** | Achieved the highest overall Accuracy (0.9039) and Precision (0.7458) by utilizing distance-weighted Manhattan metrics. However, this came at a significant cost to Recall compared to the parametric models, meaning it misses more actual purchasers. |
+| **Naive Bayes** | Suffered heavily from its feature independence assumption. Because e-commerce features (like bounce rates and exit rates) are highly correlated, the model overestimated positive signals, resulting in extreme Recall (0.9817) but terrible Precision (0.1633) and Accuracy (0.2178) due to massive false positives. |
+| **Overall, Winner for your dataset?** | **Support Vector Machine (SVM)**. SVM provided the best overall balance, yielding the highest F1 Score (0.6646), the highest AUC (0.9295), and the highest MCC (0.6091). The RBF kernel successfully navigated the non-linear boundaries of the engineered features, making it the most reliable model for identifying true buyers. |
