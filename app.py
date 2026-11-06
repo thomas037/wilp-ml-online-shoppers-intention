@@ -94,7 +94,7 @@ def load_trained_model(path):
 st.title("🛒 Online Shoppers Purchasing Intention Classifier")
 st.markdown(
     "Interactive Machine Learning deployment benchmarking classification models "
-    "on the **UCI Online Shoppers Purchasing Intention** dataset."
+    "on the [**UCI Online Shoppers Purchasing Intention**](https://archive.ics.uci.edu/dataset/468/online+shoppers+purchasing+intention+dataset) dataset."
 )
 
 if df_test is not None:
@@ -175,13 +175,6 @@ if df_test is not None:
                 col4.metric("Recall", f"{rec:.4f}")
                 col5.metric("F1 Score", f"{f1:.4f}")
                 col6.metric("MCC Score", f"{mcc:.4f}")
-
-                # Visual callout summary
-                purchase_pct = (y_pred.sum() / len(y_pred)) * 100
-                st.info(
-                    f"💡 **Prediction Breakdown:** Classified **{y_pred.sum():,}** out of "
-                    f"**{len(y_pred):,}** sessions (**{purchase_pct:.1f}%**) as completed transactions."
-                )
 
                 st.markdown("---")
 
@@ -297,11 +290,9 @@ with st.sidebar:
     st.markdown("---")
     st.markdown(
         """
-        **BITS Pilani — WILP**  
+        **BITS Pilani - WILP**  
         *Machine Learning Assignment 2*  
         
         **Author:** Leo Thomas
-        
-        **Dataset:** UCI Online Shoppers (12,330 records)
         """
     )
