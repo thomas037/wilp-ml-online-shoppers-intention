@@ -14,22 +14,23 @@ A large proportion of online shopping sessions fail to convert into purchases. T
 **Repository:** [https://github.com/thomas037/wilp-ml-online-shoppers-intention]
 
 ### d. Models Used and Evaluation Metrics Comparison
+
 *Note: The metrics below reflect the models' performance on the test set after applying class balancing techniques, feature engineering, and power transformations.*
 
-| ML Model Name | Accuracy | AUC | Precision | Recall | F1 | MCC |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Logistic Regression** | 0.8654 | 0.9236 | 0.5421 | 0.8429 | 0.6598 | 0.6028 |
-| **Decision Tree** | 0.8682 | 0.9280 | 0.5501 | 0.8194 | 0.6583 | 0.5982 |
-| **kNN** | 0.9039 | 0.9095 | 0.7458 | 0.5759 | 0.6499 | 0.6020 |
-| **Naive Bayes** | 0.2178 | 0.7677 | 0.1633 | 0.9817 | 0.2800 | 0.0851 |
-| **Support Vector Machine** | 0.8670 | 0.9295 | 0.5453 | 0.8508 | 0.6646 | 0.6091 |
+| ML Model Name | Accuracy | AUC | Precision | Recall | F1 | MCC | 
+| ----- | ----- | ----- | ----- | ----- | ----- | ----- | 
+| **Logistic Regression** | 0.8682 | 0.9120 | 0.5545 | 0.7592 | 0.6409 | 0.5730 | 
+| **Decision Tree** | 0.8625 | 0.9404 | 0.5334 | 0.8979 | 0.6693 | 0.6213 | 
+| **kNN** | 0.8933 | 0.9139 | 0.7742 | 0.4398 | 0.5609 | 0.5317 | 
+| **Naive Bayes** | 0.6959 | 0.8185 | 0.3164 | 0.8298 | 0.4581 | 0.3692 | 
+| **Support Vector Machine** | 0.8946 | 0.9386 | 0.6178 | 0.8377 | 0.7111 | 0.6597 | 
 
 ### e. Observations on Model Performance
 
-| **ML Model Name** | **Observation about model performance** |
-| :--- | :--- |
-| **Logistic Regression** | Serves as a very strong, interpretable baseline. Benefiting from the power-transformed skewed numerical features and balanced class weights, it achieved an excellent AUC (0.9236) and a high recall, successfully identifying the majority of actual purchasers. |
-| **Decision Tree** | Performed consistently well across the board. By constraining leaf splits and balancing class weights, it managed the dataset's imbalance effectively, yielding strong AUC (0.9280) and F1 scores without overfitting to the majority class. |
-| **kNN** | Achieved the highest overall Accuracy (0.9039) and Precision (0.7458) by utilizing distance-weighted Manhattan metrics. However, this came at a significant cost to Recall compared to the parametric models, meaning it misses more actual purchasers. |
-| **Naive Bayes** | Suffered heavily from its feature independence assumption. Because e-commerce features (like bounce rates and exit rates) are highly correlated, the model overestimated positive signals, resulting in extreme Recall (0.9817) but terrible Precision (0.1633) and Accuracy (0.2178) due to massive false positives. |
-| **Overall, Winner for your dataset?** | **Support Vector Machine (SVM)**. SVM provided the best overall balance, yielding the highest F1 Score (0.6646), the highest AUC (0.9295), and the highest MCC (0.6091). The RBF kernel successfully navigated the non-linear boundaries of the engineered features, making it the most reliable model for identifying true buyers. |
+| **ML Model Name** | **Observation about model performance** | 
+| ----- | ----- | 
+| **Logistic Regression** | Serves as a solid baseline. It achieved a strong AUC (0.9120) and a good balance of precision and recall, but struggles to capture more complex, non-linear relationships compared to the tree-based and SVM models. | 
+| **Decision Tree** | Achieved the highest AUC (0.9404) and the highest Recall (0.8979) among all models. It successfully identifies the vast majority of actual purchasers, though this aggressive identification results in a slightly lower precision (0.5334). | 
+| **kNN** | Yielded the highest Precision (0.7742) but the lowest Recall (0.4398). While it is very accurate when it predicts a purchase, it misses more than half of the actual buyers, indicating it is too conservative on this dataset. | 
+| **Naive Bayes** | Maintained high Recall (0.8298) but suffered from the lowest Accuracy (0.6959) and Precision (0.3164). The feature independence assumption causes it to overestimate positive signals in correlated e-commerce features, leading to many false positives. | 
+| **Overall, Winner for your dataset?** | **Support Vector Machine (SVM)**. SVM provided the absolute best overall balance, dominating with the highest Accuracy (0.8946), F1 Score (0.7111), and MCC (0.6597). It successfully captures non-linear boundaries while maintaining a healthy balance between identifying buyers (Recall: 0.8377) and keeping false alarms in check (Precision: 0.6178). | 
